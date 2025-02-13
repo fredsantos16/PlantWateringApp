@@ -11,4 +11,38 @@ run database
     pg_ctl status
     psql -U postgres
 
+git commands
+    git status
+    git ls-files
+
+    create a new branch for a new feature
+        git checkout -b feature/api-endpoints
+
+    commiting to a branch (Files are now committed, but only locally!) 
+        git commit -m "Added authentication API & fixed login bug"
+
+    pulling code from branch (Your code is now up to date with what’s on GitHub!)
+        git pull origin main
+
+    pushing code to branch (Now, your changes are visible on GitHub!)
+        git push origin feature/api-endpoints
+    
+    merging branch to main (Now, feature/api-endpoints changes are added to main!)
+        git checkout main
+        git merge feature/api-endpoints
+
+    deleting branch
+        git branch -d feature-login
+
+
+    
+
+    
+    
+    
+
+
+
+
+
 
