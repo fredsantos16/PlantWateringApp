@@ -17,12 +17,13 @@ git commands
 
     create a new branch for a new feature
         git checkout -b feature/api-endpoints
-
-    commiting to a branch (Files are now committed, but only locally!) 
-        git commit -m "Added authentication API & fixed login bug"
-
+        
     pulling code from branch (Your code is now up to date with what’s on GitHub!)
         git pull origin main
+
+    commiting to a branch (Files are now committed, but only locally!)
+        git add .
+        git commit -m "Added authentication API & fixed login bug"
 
     pushing code to branch (Now, your changes are visible on GitHub!)
         git push origin feature/api-endpoints
@@ -33,6 +34,9 @@ git commands
 
     deleting branch
         git branch -d feature-login
+
+    viewing recent commits
+        git log --oneline
 
 
     
