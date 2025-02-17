@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { Pool } = require("pg");
+const bcrypt = require("bcrypt");
 
 // Database Connection
 const pool = new Pool({
@@ -11,9 +12,10 @@ const pool = new Pool({
 router.post("/", async (req, res) => {
     const { username, email, password } = req.body;
     try {
+        const hashedPassword = await bcrypt.hash(password, 10);
         const result = await pool.query(
             "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
-            [username, email, password]
+            [username, email, hashedPassword]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {

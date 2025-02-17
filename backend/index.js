@@ -29,6 +29,7 @@ const wateringScheduleRoutes = require("./routes/watering_schedules");
 const plantNeedsRoutes = require("./routes/plant_needs");
 const wateringLogsRoutes = require("./routes/watering_logs");
 const sensorRoutes = require("./routes/sensors");
+const authRoutes = require("./routes/auth");
 
 // Registering Routes
 app.use("/users", userRoutes);
@@ -37,6 +38,7 @@ app.use("/watering-schedules", wateringScheduleRoutes);
 app.use("/plant-needs", plantNeedsRoutes);
 app.use("/watering-logs", wateringLogsRoutes);
 app.use("/sensors", sensorRoutes);
+app.use("/auth", authRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
