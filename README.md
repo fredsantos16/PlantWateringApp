@@ -37,6 +37,4 @@ git commands
 
     viewing recent commits
         git log --oneline
-
-        this is a test again
         

@@ -20,10 +20,10 @@ const pool = new Pool({
 
 pool.connect()
     .then(()=> console.log("Connected to PostgreSQL"))
-    .catch(err => console.error("Database connection error:". err));
+    .catch(err => console.error("Database connection error:", err));
 
 // Importing Routes
-const userRoutes = require("./routes/users");
+const usersRoutes = require("./routes/users");
 const plantRoutes = require("./routes/plants");
 const wateringScheduleRoutes = require("./routes/watering_schedules");
 const plantNeedsRoutes = require("./routes/plant_needs");
@@ -32,7 +32,9 @@ const sensorRoutes = require("./routes/sensors");
 const authRoutes = require("./routes/auth");
 
 // Registering Routes
-app.use("/users", userRoutes);
+console.log(usersRoutes);
+console.log(authRoutes);
+app.use("/users", usersRoutes);
 app.use("/plants", plantRoutes);
 app.use("/watering-schedules", wateringScheduleRoutes);
 app.use("/plant-needs", plantNeedsRoutes);
