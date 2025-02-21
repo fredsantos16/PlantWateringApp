@@ -16,3 +16,4 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 pgdata/
+backup.sql

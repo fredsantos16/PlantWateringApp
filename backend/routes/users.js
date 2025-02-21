@@ -13,8 +13,7 @@ router.post("/", async (req, res) => {
     const { username, email, password } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await pool.query(
-            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
+        const result = await pool.query("INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
             [username, email, hashedPassword]
         );
         res.status(201).json(result.rows[0]);
@@ -31,7 +30,7 @@ router.get("/", async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Error fetching users" });
+        res.status(500).json({ error: "Error fetching users"});
     }
 });
 

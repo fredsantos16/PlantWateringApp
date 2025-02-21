@@ -34,6 +34,7 @@ const authRoutes = require("./routes/auth");
 // Registering Routes
 console.log(usersRoutes);
 console.log(authRoutes);
+app.use(express.json());
 app.use("/users", usersRoutes);
 app.use("/plants", plantRoutes);
 app.use("/watering-schedules", wateringScheduleRoutes);

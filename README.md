@@ -9,8 +9,8 @@ run frontend
 run database
     pg_ctl -D "C:\Program Files\PostgreSQL\17\data" start
     pg_ctl status
-    psql -U postgres
-
+    psql -d plant_watering_app -U postgres
+    
 git commands
     git status
     git ls-files
@@ -38,3 +38,11 @@ git commands
     viewing recent commits
         git log --oneline
         
+
+Technologies used:
+ -Postgres
+ -Node.js
+ -Flutter
+ -Bcrypt
+ -JWToken
+  
