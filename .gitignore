@@ -16,3 +16,6 @@ frontend/node_modules/
 
 # Ignore docs
 docs/
+
+# Database docs
+backup.sql
