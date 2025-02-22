@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.json());
 
 // Database connection
 const pool = new Pool({
@@ -34,7 +35,6 @@ const authRoutes = require("./routes/auth");
 // Registering Routes
 console.log(usersRoutes);
 console.log(authRoutes);
-app.use(express.json());
 app.use("/users", usersRoutes);
 app.use("/plants", plantRoutes);
 app.use("/watering-schedules", wateringScheduleRoutes);
