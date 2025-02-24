@@ -13,7 +13,7 @@ router.post("/", async (req, res) => {
     try {
         const { username, email, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await pool.query("INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
+        const result = await pool.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *",
             [username, email, hashedPassword]
         );
         res.status(201).json(result.rows[0]);
@@ -64,25 +64,99 @@ router.delete("/:id", async (req, res) => {
     }
 });
 
-// Update user by id
+// Update user profile information by id
 router.put("/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { username, email, password } = req.body;
+    const { id } = req.params;
+    const { username, email } = req.body;
 
-        let hashedPassword = password;
-        if (password) {
-            hashedPassword = await bcrypt.hash(password, 10);
+    try {
+        if (email) {
+            const emailCheck = await pool.query("SELECT id FROM users WHERE email = $1 AND id != $2",
+                [email, id]
+            );
+
+            if (emailCheck.rows.length > 0) {
+                return res.status(400).json({ error: "Email already in use" });
+            }
         }
-        await pool.query("UPDATE users SET username = $1, email = $2, password_hash = $3 WHERE id = $4", 
-            [username, email, hashedPassword, id]
+
+        if (username) {
+            const usernameCheck = await pool.query("SELECT id FROM users WHERE username = $1 AND id != $2",
+                [username, id]
+            );
+
+            if (usernameCheck.rows.length > 0) {
+                return res.status(400).json({ error: "Username already in use" });
+            }
+        }
+
+        const result = await pool.query(
+            "UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email) WHERE id = $3 RETURNING id, username, email",
+            [username, email, id]
         );
-        res.json({ message: "User updated!" });
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        res.json({ message: "User updated!", user: result.rows[0] });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send("Server Error");
+        console.error(err);
+        res.status(500).json({ error: "Error updating user" });
     }
 });
+
+
+// Update password of user by id
+router.put("/:id/password", async (req, res) => {
+    const { id } = req.params;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+        return res.status(400).json({ error: "Both old and new passwords are required" });
+    }
+
+    try {
+        // Fetch the current password hash from the database
+        const userResult = await pool.query("SELECT password_hash FROM users WHERE id = $1",
+            [id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const currentHash = userResult.rows[0].password_hash;
+
+        if (!currentHash) {
+            return res.status(500).json({ error: "User does not have a password set" });
+        }
+
+        // Compare old password with stored hash
+        const isMatch = await bcrypt.compare(oldPassword, currentHash);
+
+        if (!isMatch) {
+            return res.status(400).json({ error: "Old password is incorrect" });
+        }
+
+        // Ensure the new password is different
+        const isSamePassword = await bcrypt.compare(newPassword, currentHash);
+
+        if (isSamePassword) {
+            return res.status(400).json({ error: "New password must be different from the old password" });
+        }
+
+        // Hash the new password and update it in the database
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2",
+            [hashedPassword, id]
+        );
+        res.json({ message: "Password updated successfully!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 
 
 module.exports = router;
