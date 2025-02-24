@@ -70,8 +70,27 @@ router.put("/:id", async (req, res) => {
     const { username, email } = req.body;
 
     try {
-        if (email) {
-            const emailCheck = await pool.query("SELECT id FROM users WHERE email = $1 AND id != $2",
+        // Fetch the current user data
+        const userResult = await pool.query(
+            "SELECT username, email FROM users WHERE id = $1",
+            [id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const currentUser = userResult.rows[0];
+
+        // Check if both username and email are unchanged
+        if (username === currentUser.username && email === currentUser.email) {
+            return res.status(400).json({ error: "No changes detected" });
+        }
+
+        // Check if the email is already in use by another user
+        if (email && email !== currentUser.email) {
+            const emailCheck = await pool.query(
+                "SELECT id FROM users WHERE email = $1 AND id != $2",
                 [email, id]
             );
 
@@ -80,30 +99,31 @@ router.put("/:id", async (req, res) => {
             }
         }
 
-        if (username) {
-            const usernameCheck = await pool.query("SELECT id FROM users WHERE username = $1 AND id != $2",
+        // Check if the username is already taken by another user
+        if (username && username !== currentUser.username) {
+            const usernameCheck = await pool.query(
+                "SELECT id FROM users WHERE username = $1 AND id != $2",
                 [username, id]
             );
 
             if (usernameCheck.rows.length > 0) {
-                return res.status(400).json({ error: "Username already in use" });
+                return res.status(400).json({ error: "Username already taken" });
             }
         }
 
+        // Update the user information
         const result = await pool.query(
             "UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email) WHERE id = $3 RETURNING id, username, email",
             [username, email, id]
         );
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "User not found" });
-        }
         res.json({ message: "User updated!", user: result.rows[0] });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Error updating user" });
     }
 });
+
 
 
 // Update password of user by id
