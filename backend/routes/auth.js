@@ -5,8 +5,9 @@ const { Pool } = require("pg");
 require("dotenv").config();
 
 const router = express.Router();
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL,
 });
 
 // Login route

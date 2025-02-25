@@ -2,7 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 require("dotenv").config();
+const listEndpoints = require("express-list-endpoints");
 const { Pool } = require("pg")
+
 
 // Initialize Express
 const app = express();
@@ -48,7 +50,13 @@ app.get("/", (req, res) => {
     res.send("Backend is running!");
 });
 
+app.use((req, res, next) => {
+    console.log(`Incoming request: ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(listEndpoints(app));
 });

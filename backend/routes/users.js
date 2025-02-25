@@ -13,10 +13,10 @@ const pool = new Pool({
 // Create a new user
 router.post("/", async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        const { username, email, password, is_admin = false } = req.body; // Default is_admin to false
         const hashedPassword = await bcrypt.hash(password, 10);
         const result = await pool.query("INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING *",
-            [username, email, hashedPassword, is_admin || false]
+            [username, email, hashedPassword, is_admin]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
