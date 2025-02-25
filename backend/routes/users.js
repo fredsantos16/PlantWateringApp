@@ -69,7 +69,24 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const { username, email } = req.body;
 
+    // Regular expression for validating email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     try {
+        // Ensure username and email are not null or empty
+        if (!username || username.trim() === "") {
+            return res.status(400).json({ error: "Username cannot be empty" });
+        }
+
+        if (!email || email.trim() === "") {
+            return res.status(400).json({ error: "Email cannot be empty" });
+        }
+
+        // Validate email format
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ error: "Invalid email format" });
+        }
+
         // Fetch the current user data
         const userResult = await pool.query(
             "SELECT username, email FROM users WHERE id = $1",
@@ -87,20 +104,8 @@ router.put("/:id", async (req, res) => {
             return res.status(400).json({ error: "No changes detected" });
         }
 
-        // Check if the email is already in use by another user
-        if (email && email !== currentUser.email) {
-            const emailCheck = await pool.query(
-                "SELECT id FROM users WHERE email = $1 AND id != $2",
-                [email, id]
-            );
-
-            if (emailCheck.rows.length > 0) {
-                return res.status(400).json({ error: "Email already in use" });
-            }
-        }
-
-        // Check if the username is already taken by another user
-        if (username && username !== currentUser.username) {
+        // Check if the new username is already taken by another user
+        if (username !== currentUser.username) {
             const usernameCheck = await pool.query(
                 "SELECT id FROM users WHERE username = $1 AND id != $2",
                 [username, id]
@@ -111,9 +116,21 @@ router.put("/:id", async (req, res) => {
             }
         }
 
+        // Check if the new email is already in use by another user
+        if (email !== currentUser.email) {
+            const emailCheck = await pool.query(
+                "SELECT id FROM users WHERE email = $1 AND id != $2",
+                [email, id]
+            );
+
+            if (emailCheck.rows.length > 0) {
+                return res.status(400).json({ error: "Email already in use" });
+            }
+        }
+
         // Update the user information
         const result = await pool.query(
-            "UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email) WHERE id = $3 RETURNING id, username, email",
+            "UPDATE users SET username = $1, email = $2 WHERE id = $3 RETURNING id, username, email",
             [username, email, id]
         );
 
@@ -123,6 +140,8 @@ router.put("/:id", async (req, res) => {
         res.status(500).json({ error: "Error updating user" });
     }
 });
+
+
 
 
 
