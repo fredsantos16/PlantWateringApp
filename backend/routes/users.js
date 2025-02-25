@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
+const authenticateUser = require("../middleware/auth");
+const requireAdmin = require("../middleware/admin");
 
 // Database Connection
 const pool = new Pool({
@@ -13,8 +15,8 @@ router.post("/", async (req, res) => {
     try {
         const { username, email, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await pool.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *",
-            [username, email, hashedPassword]
+        const result = await pool.query("INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING *",
+            [username, email, hashedPassword, is_admin || false]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -24,7 +26,11 @@ router.post("/", async (req, res) => {
 });
 
 // Get all users
-router.get("/", async (req, res) => {
+router.get("/", authenticateUser, requireAdmin, async (req, res) => {
+    if (!req.user.is_admin){
+        return res.status(403).json({ error: "Access denied."})
+    }
+
     try {
         const result = await pool.query("SELECT id, username, email FROM users");
         res.json(result.rows);
@@ -35,13 +41,15 @@ router.get("/", async (req, res) => {
 });
 
 // Get a user by id
-router.get("/:id", async (req, res) => {
-    const { id } = req.params;
+router.get("/profile", authenticateUser, async (req, res) => {
+    const userId = req.user.id;
     try {
         const result = await pool.query("SELECT id, username, email FROM users WHERE id = $1",
-            [id]
+            [userId]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
+        if (result.rows.length === 0){
+            return res.status(404).json({ error: "User not found" });
+        }
         res.json(result.rows[0]);
     } catch (err) {
         console.error(err);
@@ -50,7 +58,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Delete a user by id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING *",
@@ -65,7 +73,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 // Update user profile information by id
-router.put("/:id", async (req, res) => {
+router.put("/:id", authenticateUser, async (req, res) => {
     const { id } = req.params;
     const { username, email } = req.body;
 
@@ -141,12 +149,8 @@ router.put("/:id", async (req, res) => {
     }
 });
 
-
-
-
-
 // Update password of user by id
-router.put("/:id/password", async (req, res) => {
+router.put("/:id/password", authenticateUser, async (req, res) => {
     const { id } = req.params;
     const { oldPassword, newPassword } = req.body;
 
