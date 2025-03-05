@@ -11,7 +11,7 @@ const pool = new Pool({
 });
 
 // Create a new user
-router.post("/", async (req, res) => {
+router.post("/register", async (req, res) => {
     try {
         const { username, email, password, is_admin = false } = req.body; // Default is_admin to false
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -199,7 +199,5 @@ router.put("/:id/password", authenticateUser, async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
-
-
 
 module.exports = router;
