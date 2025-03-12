@@ -42,7 +42,8 @@ router.get("/", authenticateUser, requireAdmin, async (req, res) => {
 
 // Get a user by id
 router.get("/profile", authenticateUser, async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.user.userId;
+    console.log("User ID from Token:", userId);
     try {
         const result = await pool.query("SELECT id, username, email FROM users WHERE id = $1",
             [userId]

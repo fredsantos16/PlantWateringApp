@@ -19,7 +19,7 @@ router.post("/login", async (req, res) => {
     }
 
     try {
-        const userResult = await pool.query("SELECT id, username, password_hash FROM users WHERE email = $1",
+        const userResult = await pool.query("SELECT id, username, password_hash, is_admin FROM users WHERE email = $1",
             [email]
         );
         if (userResult.rows.length === 0) {
@@ -45,5 +45,7 @@ router.post("/login", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+
+
 
 module.exports = router;

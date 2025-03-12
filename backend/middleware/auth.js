@@ -16,9 +16,11 @@ const authenticateUser = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (err){
-        res.status(401).json({ error: "Invalid or expired token."});
+        if (err.name === "TokenExpiredError"){
+            return res.status(401).json({ error: "Token expired", code: "TOKEN_EXPIRED"});
+        }
+        return res.status(401).json({ error: "Invalid token", code: "INVALID_TOKEN"});
     }
 };
-
 
 module.exports = authenticateUser;
