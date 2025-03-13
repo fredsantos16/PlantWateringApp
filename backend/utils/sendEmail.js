@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 
+// Send reset password email
 const sendEmail = async (to, subject, text) => {
     const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -9,12 +10,21 @@ const sendEmail = async (to, subject, text) => {
         },
     });
 
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to,
-        subject,
-        text,
-    });
+    console.log("Sending email to:", to);
+
+    const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: to, 
+        subject: subject,
+        html: `<p>${text}</p>`
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Email sent: " + info.response);
+    } catch (error) {
+        console.error("Error sending email:", error);
+    }
 };
 
 module.exports = sendEmail;

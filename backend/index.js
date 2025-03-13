@@ -35,7 +35,6 @@ const sensorRoutes = require("./routes/sensors");
 const authRoutes = require("./routes/auth");
 
 // Registering Routes
-console.log(usersRoutes);
 console.log(authRoutes);
 app.use("/users", usersRoutes);
 app.use("/plants", plantRoutes);
@@ -44,6 +43,11 @@ app.use("/plant-needs", plantNeedsRoutes);
 app.use("/watering-logs", wateringLogsRoutes);
 app.use("/sensors", sensorRoutes);
 app.use("/auth", authRoutes);
+
+//Password reset variable debugging
+console.log("EMAIL_USER:", process.env.EMAIL_USER);
+console.log("EMAIL_FROM:", process.env.EMAIL_FROM);
+console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
 
 // Test Route
 app.get("/", (req, res) => {

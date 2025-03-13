@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const { Pool } = require("pg");
 require("dotenv").config();
@@ -51,6 +52,7 @@ router.post("/login", async (req, res) => {
 router.post("/request-password-reset", async (req, res) => {
     try {
         const { email } = req.body;
+        console.log("Received email:", email);
         const userQuery = "SELECT id FROM users WHERE email = $1";
         const userResult = await pool.query(userQuery, [email]);
 
@@ -120,7 +122,7 @@ router.post("/reset-password", async (req, res) => {
         // Update password and clear reset token
         const updateQuery = `
             UPDATE users 
-            SET password = $1, reset_password_token = NULL, reset_password_expires = NULL 
+            SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL 
             WHERE id = $2
         `;
         await pool.query(updateQuery,
