@@ -65,7 +65,7 @@ router.post("/request-password-reset", async (req, res) => {
         // Generate secure reset token
         const resetToken = crypto.randomBytes(32).toString("hex");
         const hashedToken = await bcrypt.hash(resetToken, 10);
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
         // Store token in the database
         const updateQuery = `
@@ -77,7 +77,7 @@ router.post("/request-password-reset", async (req, res) => {
             [hashedToken, expiresAt, userId]
         );
 
-        // Send email with reset link
+        // Send email with reset link along with token
         const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${email}`;
         await sendEmail(email, "Password Reset Request", `Click to reset your password: ${resetLink}`);
 
