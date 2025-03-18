@@ -24,6 +24,7 @@ router.post("/login", async (req, res) => {
         const userResult = await pool.query("SELECT id, username, password_hash, is_admin FROM users WHERE email = $1",
             [email]
         );
+
         if (userResult.rows.length === 0) {
             return res.status(401).json({ error: "Invalid credentials" });
         }
@@ -35,18 +36,106 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        const token = jwt.sign(
+        const accessToken = jwt.sign(
             { userId: user.id, is_admin: user.is_admin, username: user.username },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRATION }
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: process.env.JWT_ACCESS_EXPIRATION }
+        );
+        
+        const refreshToken = jwt.sign(
+            {userId: user.id, is_admin: user.is_admin, username: user.username },
+            process.env.REFRESH_TOKEN_SECRET,
+            { expiresIn: process.env.JWT_REFRESH_EXPIRATION}
+        )
+
+        await pool.query("UPDATE users SET refresh_token = $1 WHERE id = $2",
+            [refreshToken, user.id]
         );
 
-        res.json({ message: "Login successful", token });
+        res.json({ message: "Login successful", accessToken, refreshToken });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Server error" });
     }
 });
+
+// Refresh token route
+router.post('/refresh', async (req, res) => {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+        return res.status(401).json({ error: "Refresh token required" });
+    }
+
+    try {
+        // Check if refresh token exists in the database
+        const userResult = await pool.query(
+            "SELECT id, is_admin, username FROM users WHERE refresh_token = $1",
+            [refreshToken]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(403).json({ error: "Invalid refresh token" });
+        }
+
+        const user = userResult.rows[0];
+
+        // Verify the refresh token
+        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
+            if (err || decoded.userId !== user.id) {
+                return res.status(403).json({ error: "Invalid or expired refresh token" });
+            }
+
+            // Generate a new access token
+            const newAccessToken = jwt.sign(
+                { userId: user.id, is_admin: user.is_admin, username: user.username },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_ACCESS_EXPIRATION }
+            );
+
+            // Generate a new refresh token
+            const newRefreshToken = jwt.sign(
+                { userId: user.id, is_admin: user.is_admin, username: user.username },
+                process.env.REFRESH_TOKEN_SECRET,
+                { expiresIn: process.env.JWT_REFRESH_EXPIRATION }
+            );
+
+            // Store the new refresh token in the database
+            await pool.query(
+                "UPDATE users SET refresh_token = $1 WHERE id = $2",
+                [newRefreshToken, user.id]
+            );
+
+            // Return both tokens
+            res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+
+// Logout route
+router.post('/logout', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ error: "Refresh token required" });
+
+    try {
+        await pool.query('UPDATE users SET refresh_token = NULL WHERE refresh_token = $1',
+            [refreshToken]
+        );
+
+        res.json({ message: "Logged out successfully" });
+
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+
+
 
 // Request password reset
 router.post("/request-password-reset", async (req, res) => {
