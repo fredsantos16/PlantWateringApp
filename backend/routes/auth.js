@@ -41,11 +41,11 @@ router.post("/login", async (req, res) => {
             process.env.ACCESS_TOKEN_SECRET,
             { expiresIn: process.env.JWT_ACCESS_EXPIRATION }
         );
-        
+
         const refreshToken = jwt.sign(
-            {userId: user.id, is_admin: user.is_admin, username: user.username },
+            { userId: user.id, is_admin: user.is_admin, username: user.username },
             process.env.REFRESH_TOKEN_SECRET,
-            { expiresIn: process.env.JWT_REFRESH_EXPIRATION}
+            { expiresIn: process.env.JWT_REFRESH_EXPIRATION }
         )
 
         await pool.query("UPDATE users SET refresh_token = $1 WHERE id = $2",
@@ -62,16 +62,19 @@ router.post("/login", async (req, res) => {
 // Refresh token route
 router.post('/refresh', async (req, res) => {
     const { refreshToken } = req.body;
-    
+
     if (!refreshToken) {
         return res.status(401).json({ error: "Refresh token required" });
     }
 
     try {
-        // Check if refresh token exists in the database
+        // Verify token before fetching it
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+        // Search user by id and token
         const userResult = await pool.query(
-            "SELECT id, is_admin, username FROM users WHERE refresh_token = $1",
-            [refreshToken]
+            "SELECT id, is_admin, username FROM users WHERE id = $1 AND refresh_token = $2",
+            [decoded.userId, refreshToken]
         );
 
         if (userResult.rows.length === 0) {
@@ -80,35 +83,58 @@ router.post('/refresh', async (req, res) => {
 
         const user = userResult.rows[0];
 
-        // Verify the refresh token
-        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
-            if (err || decoded.userId !== user.id) {
-                return res.status(403).json({ error: "Invalid or expired refresh token" });
-            }
+        // Generate new tokens
+        const newAccessToken = jwt.sign(
+            { userId: user.id, is_admin: user.is_admin, username: user.username },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: process.env.JWT_ACCESS_EXPIRATION }
+        );
 
-            // Generate a new access token
-            const newAccessToken = jwt.sign(
-                { userId: user.id, is_admin: user.is_admin, username: user.username },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_ACCESS_EXPIRATION }
-            );
+        const newRefreshToken = jwt.sign(
+            { userId: user.id, is_admin: user.is_admin, username: user.username },
+            process.env.REFRESH_TOKEN_SECRET,
+            { expiresIn: process.env.JWT_REFRESH_EXPIRATION }
+        );
 
-            // Generate a new refresh token
-            const newRefreshToken = jwt.sign(
-                { userId: user.id, is_admin: user.is_admin, username: user.username },
-                process.env.REFRESH_TOKEN_SECRET,
-                { expiresIn: process.env.JWT_REFRESH_EXPIRATION }
-            );
+        // Update tokens in database
+        await pool.query(
+            "UPDATE users SET refresh_token = $1 WHERE id = $2",
+            [newRefreshToken, user.id]
+        );
 
-            // Store the new refresh token in the database
-            await pool.query(
-                "UPDATE users SET refresh_token = $1 WHERE id = $2",
-                [newRefreshToken, user.id]
-            );
+        res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
 
-            // Return both tokens
-            res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
-        });
+    } catch (error) {
+        console.error(error);
+        res.status(403).json({ error: "Invalid or expired refresh token" });
+    }
+});
+
+
+
+// Logout route
+router.post('/logout', async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) return res.status(400).json({ error: "Refresh token required" });
+
+    try {
+        // Check if refresh token exists
+        const userResult = await pool.query(
+            "SELECT id FROM users WHERE refresh_token = $1",
+            [refreshToken]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(400).json({ error: "Invalid refresh token" });
+        }
+
+        await pool.query(
+            "UPDATE users SET refresh_token = NULL WHERE refresh_token = $1",
+            [refreshToken]
+        );
+
+        res.json({ message: "Logged out successfully" });
 
     } catch (error) {
         console.error(error);
@@ -116,23 +142,6 @@ router.post('/refresh', async (req, res) => {
     }
 });
 
-
-// Logout route
-router.post('/logout', async (req, res) => {
-    const { refreshToken } = req.body;
-    if (!refreshToken) return res.status(400).json({ error: "Refresh token required" });
-
-    try {
-        await pool.query('UPDATE users SET refresh_token = NULL WHERE refresh_token = $1',
-            [refreshToken]
-        );
-
-        res.json({ message: "Logged out successfully" });
-
-    } catch (error) {
-        res.status(500).json({ error: "Server error" });
-    }
-});
 
 
 
@@ -142,8 +151,9 @@ router.post("/request-password-reset", async (req, res) => {
     try {
         const { email } = req.body;
         console.log("Received email:", email);
-        const userQuery = "SELECT id FROM users WHERE email = $1";
-        const userResult = await pool.query(userQuery, [email]);
+        const userResult = await pool.query("SELECT id FROM users WHERE email = $1",
+            [email]
+        );
 
         if (userResult.rows.length === 0) {
             return res.status(404).json({ error: "User not found" });
@@ -157,12 +167,7 @@ router.post("/request-password-reset", async (req, res) => {
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
         // Store token in the database
-        const updateQuery = `
-            UPDATE users 
-            SET reset_password_token = $1, reset_password_expires = $2 
-            WHERE id = $3
-        `;
-        await pool.query(updateQuery,
+        await pool.query("UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE id = $3",
             [hashedToken, expiresAt, userId]
         );
 
@@ -181,11 +186,7 @@ router.post("/request-password-reset", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
     try {
         const { email, token, newPassword } = req.body;
-        const userQuery = `
-            SELECT id, reset_password_token, reset_password_expires 
-            FROM users WHERE email = $1
-        `;
-        const userResult = await pool.query(userQuery,
+        const userResult = await pool.query("SELECT id, reset_password_token, reset_password_expires FROM users WHERE email = $1",
             [email]
         );
 
@@ -209,12 +210,7 @@ router.post("/reset-password", async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Update password and clear reset token
-        const updateQuery = `
-            UPDATE users 
-            SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL 
-            WHERE id = $2
-        `;
-        await pool.query(updateQuery,
+        await pool.query("UPDATE users SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2",
             [hashedPassword, user.id]
         );
 
